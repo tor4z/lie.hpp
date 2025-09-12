@@ -28,9 +28,9 @@ struct Array
     inline T at(int i) const { return data_.at(i); }
     inline int size() const { return data_.size(); }
 
-    virtual Array<T> operator*(const Array<T>& other) const;
-    virtual Array<T> operator-(const Array<T>& other) const;
-    virtual Array<T> operator+(const Array<T>& other) const;
+    Array<T> operator*(const Array<T>& other) const;
+    Array<T> operator-(const Array<T>& other) const;
+    Array<T> operator+(const Array<T>& other) const;
 private:
     std::vector<T> data_;
 }; // struct Array
@@ -49,6 +49,7 @@ private:
 public:
     MatrixInitializer operator<<(T v);
     Matrix() : array_(R * C), row_(R), col_(C) {}
+    Matrix(const Array<T>& a) : array_(a), row_(R), col_(C) {}
 
     inline Array<T>& array() { return array_; }
     inline const Array<T>& array() const { return array_; }
@@ -60,7 +61,8 @@ public:
 
     virtual inline Matrix operator-(const Matrix& other) const { return Matrix<T, R, C>(array_ - other.array_); }
     virtual inline Matrix operator+(const Matrix& other) const { return Matrix<T, R, C>(array_ + other.array_); }
-    virtual Matrix<T, R, C> operator*(const Matrix<T, R, C>& other) const;
+    template<int C2>
+    Matrix<T, C, C2> operator*(const Matrix<T, C, C2>& other) const;
 
     Matrix<T, R, C> t() const;
     bool is_skew_sym() const;
@@ -191,10 +193,10 @@ typename Matrix<T, R, C>::MatrixInitializer& Matrix<T, R, C>::MatrixInitializer:
 }
 
 template<typename T, int R, int C>
-Matrix<T, R, C> Matrix<T, R, C>::operator*(const Matrix<T, R, C>& other) const
+template<int C2>
+Matrix<T, C, C2> Matrix<T, R, C>::operator*(const Matrix<T, C, C2>& other) const
 {
     Matrix<T, R, C> out;
-    
 
     return out;
 }

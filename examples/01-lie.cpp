@@ -8,6 +8,7 @@ int main()
     m << 1, 2,
          4, 5;
 
+    auto m2 = m * m;
     std::cout << m << "\n";
 
     lie::SO3f so3;
