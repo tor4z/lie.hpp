@@ -49,7 +49,7 @@ private:
 public:
     MatrixInitializer operator<<(T v);
     Matrix() : array_(R * C), row_(R), col_(C) {}
-    Matrix(const Array<T>& a) : array_(a), row_(R), col_(C) {}
+    Matrix(const Array<T>& a) : array_(a), row_(R), col_(C) { assert(a.size() == R * C); }
 
     inline Array<T>& array() { return array_; }
     inline const Array<T>& array() const { return array_; }
