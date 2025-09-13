@@ -25,7 +25,7 @@ using Vector = Matrix<T, D, 1>;
 template<typename T>
 struct Array
 {
-    explicit Array(int size) { data_.resize(size); }
+    explicit Array(int size) { data_.resize(size, 0); }
     Array<T> (const Array<T>& other);
     Array<T> (Array<T>&& other);
     Array<T>& operator=(const Array<T>& other);
@@ -393,10 +393,10 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
                     break;
                 }
             }
-            pivot = tmp.at(c, c);   // update pivot
+            pivot = tmp.at(c, c);       // update pivot
         }
 
-        if (is_0(pivot)) break; // finished
+        if (is_0(pivot)) break;      // finished
         for (int r = 0; r < R; ++r) {
             if (is_0(tmp.at(r, c)) || r == c) {
                 continue;
@@ -409,23 +409,43 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
         }
     }
 
-    // upword elimination and solve
-    Vector<T, R> out;
+    // upword elimination
     for (int r = 0; r < R; ++r) {
         if (!is_0(tmp.at(r, r))) {
             if (!has_not0_after_c(r, C)) {
                 for (int r1 = 0; r1 < r; ++r1) {
                     tmp.at(r1, r) = 0;
                 }
-                out.at(r) = 0;
-            } else {
-                out.at(r) = 1;
-                out.at(r) = 1;
             }
         }
     }
 
-    std::cout << "tmp: " << tmp << "\n";
+    // solve
+    Vector<T, R> out;
+    int not0_cs[2];  // not 0 col index on row r
+    for (int r = 0; r < R; ++r) {
+        int num_not0{0};
+        for (int c = 0; c < C; ++c) {
+            if (!is_0(tmp.at(r, c))) {
+                not0_cs[num_not0++] = c;
+            }
+        }
+        if (num_not0 == 1) {
+            out.at(not0_cs[0]) = 0;
+        } else if (num_not0 == 2) {
+            if (is_0(out.at(not0_cs[1]))) {
+                out.at(not0_cs[0]) = 1;
+                out.at(not0_cs[1]) = -tmp.at(r, not0_cs[0]) / tmp.at(r, not0_cs[1]);
+            } else {
+                out.at(not0_cs[0]) = -out.at(not0_cs[1]) * tmp.at(r, not0_cs[1]) / tmp.at(r, not0_cs[0]);
+            }
+        } else if (num_not0 == 0) {
+            // nothing
+        } else {
+            assert(false && "Undefined");
+        }
+    }
+
     return out;
 }
 

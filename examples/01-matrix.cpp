@@ -19,6 +19,7 @@ int main()
     std::cout << "det of m3x3: " << m33.det() << "\n";
     std::cout << "det of eye3: " << lie::Matrix3f::eye().det() << "\n";
 
-    m33.null_space();
+    auto m33_null{m33.null_space()};
+    std::cout << "null space of m33: " << m33_null << "\n";
     return 0;
 }
