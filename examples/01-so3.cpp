@@ -29,6 +29,7 @@ int main()
         std::cout << "v: " << v << "\n";
         std::cout << "so3: " << so3 << "\n";
         std::cout << "Log of so3: " << so3.Log() << "\n";
+        std::cout << "log of so3: " << so3.log() << "\n";
     }
     return 0;
 }

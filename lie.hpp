@@ -581,7 +581,7 @@ Vector<T, D> SO<T, D>::Log() const
 template<typename T, int D>
 Matrix<T, D, D> SO<T, D>::log() const
 {
-
+    return Log().hat();
 }
 
 template<typename T, int R, int C>
