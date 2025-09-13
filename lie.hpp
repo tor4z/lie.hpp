@@ -90,8 +90,9 @@ public:
     Matrix<T, C, R> t() const;
     Vector<T, R> vee() const;
     Vector<T, R> null_space() const;
+    Matrix normalize() const;
 
-    static Matrix<T, R, C> eye();
+    static Matrix eye();
 private:
     Array<T> array_;
     int row_;
@@ -462,6 +463,25 @@ SO<T, R> Matrix<T, R, C>::exp() const
 }
 
 template<typename T, int R, int C>
+Matrix<T, R, C> Matrix<T, R, C>::normalize() const
+{
+    static_assert(C == 1, "Undefined");
+    auto norm{norm2()};
+    Matrix<T, R, C> out;
+    if (is_0(norm)) {
+        return out;
+    }
+
+    if (C == 1) {
+        for (int i = 0; i < size(); ++i) {
+            out.at(i) = at(i) / norm;
+        }
+    }
+    return out;
+}
+
+
+template<typename T, int R, int C>
 Matrix<T, R, C> Matrix<T, R, C>::eye()
 {
     static_assert(R == C);
@@ -554,7 +574,7 @@ template<typename T, int D>
 Vector<T, D> SO<T, D>::Log() const
 {
     auto theta{std::acos((tr() - 1) / 2)};
-    Vector<T, D> norm_v{(*this - Matrix<T, D, D>::eye()).null_space()};   
+    Vector<T, D> norm_v{(*this - Matrix<T, D, D>::eye()).null_space().normalize()};   
     return norm_v * theta;
 }
 

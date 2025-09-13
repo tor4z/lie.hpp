@@ -22,5 +22,13 @@ int main()
         std::cout << "so3^T: " << so3.t() << "\n";
         std::cout << "so3 * so3.t(): " << so3 * so3.t() << "\n";
     }
+
+    std::cout << "=========== Log ==============\n";
+    {
+        auto so3{v.Exp()};
+        std::cout << "v: " << v << "\n";
+        std::cout << "so3: " << so3 << "\n";
+        std::cout << "Log of so3: " << so3.Log() << "\n";
+    }
     return 0;
 }
