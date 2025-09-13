@@ -2,7 +2,9 @@
 #define LIE_HPP_
 
 #include <cassert>
+#include <cstdlib>
 #include <iomanip>
+#include <limits>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -56,15 +58,14 @@ public:
     inline int row() const { return row_; }
     inline int col() const { return col_; }
     inline int size() const { return array_.size(); }
-    inline T at(int r, int c) const { array_.at(r * C + c); }
-    inline T& at(int r, int c) { array_.at(r * C + c); }
+    inline T at(int r, int c) const { return array_.at(r * C + c); }
+    inline T& at(int r, int c) { return array_.at(r * C + c); }
 
     virtual inline Matrix operator-(const Matrix& other) const { return Matrix<T, R, C>(array_ - other.array_); }
     virtual inline Matrix operator+(const Matrix& other) const { return Matrix<T, R, C>(array_ + other.array_); }
-    template<int C2>
-    Matrix<T, C, C2> operator*(const Matrix<T, C, C2>& other) const;
+    template<int C2> Matrix<T, R, C2> operator*(const Matrix<T, C, C2>& other) const;
 
-    Matrix<T, R, C> t() const;
+    Matrix<T, C, R> t() const;
     bool is_skew_sym() const;
     Vector<T, R> vee() const;
     SO<T, R> exp() const;
@@ -85,12 +86,12 @@ using Matrix2f = Matrix<float, 2, 2>;
 using Matrix3f = Matrix<float, 3, 3>;
 using Matrix4f = Matrix<float, 4, 4>;
 
-template<typename T, int R>
-struct Vector: public Matrix<T, R, 1>
+template<typename T, int D>
+struct Vector: public Matrix<T, D, 1>
 {
-    Vector() : Matrix<T, R, 1>() {}
-    Matrix<T, R, R> hat() const;
-    SO<T, R> Exp() const;
+    Vector() : Matrix<T, D, 1>() {}
+    Matrix<T, D, D> hat() const;
+    SO<T, D> Exp() const;
 }; // struct Vector
 
 template<int R>
@@ -109,7 +110,6 @@ struct SO: public Matrix<T, D, D>
 {
     SO() : Matrix<T, D, D>() {}
     Vector<T, D> operator*(const Vector<T, D>& v) const;
-    SO<T, D> operator*(const SO<T, D>& v) const;
     Vector<T, D> Log() const;
     Matrix<T, D, D> log() const;
 }; // struct SO
@@ -194,13 +194,88 @@ typename Matrix<T, R, C>::MatrixInitializer& Matrix<T, R, C>::MatrixInitializer:
 
 template<typename T, int R, int C>
 template<int C2>
-Matrix<T, C, C2> Matrix<T, R, C>::operator*(const Matrix<T, C, C2>& other) const
+Matrix<T, R, C2> Matrix<T, R, C>::operator*(const Matrix<T, C, C2>& other) const
 {
-    Matrix<T, R, C> out;
+    Matrix<T, R, C2> out;
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C2; ++j) {
+            T val{0};
+            for (int k = 0; k < C; ++k) {
+                val += at(i, k) * other.at(k, j);
+            }
+            out.at(i, j) = val;
+        }
+    }
+    return out;
+}
+
+template<typename T, int R, int C>
+Matrix<T, C, R> Matrix<T, R, C>::t() const
+{
+    Matrix<T, C, R> out;
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            out.at(j, i) = at(i, j);
+        }
+    }
 
     return out;
 }
 
+template<typename T, int R, int C>
+bool Matrix<T, R, C>::is_skew_sym() const
+{
+    if (R != C) return false;
+
+    for (int i = 0; i < R; ++i) {
+        for (int j = i; j < C; ++j) {
+            if (i == j) if (at(i, j) != 0) {
+                return false;
+            }
+            if (std::abs(at(i, j) + at(j, i)) > std::numeric_limits<T>::epsilon()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+template<typename T, int R, int C>
+Vector<T, R> Matrix<T, R, C>::vee() const
+{
+
+}
+
+template<typename T, int R, int C>
+SO<T, R> Matrix<T, R, C>::exp() const
+{
+
+}
+
+template<typename T, int D>
+Matrix<T, D, D> Vector<T, D>::hat() const
+{
+
+}
+
+template<typename T, int D>
+SO<T, D> Vector<T, D>::Exp() const
+{
+
+}
+
+template<typename T, int D>
+Vector<T, D> SO<T, D>::Log() const
+{
+
+}
+
+template<typename T, int D>
+Matrix<T, D, D> SO<T, D>::log() const
+{
+
+}
 
 template<typename T, int R, int C>
 std::ostream& operator<<(std::ostream& os, const Matrix<T, R, C>& m)
