@@ -164,6 +164,11 @@ using SO2d = SOd<2>;
 using SO3f = SOf<3>;
 using SO3d = SOd<3>;
 
+template<typename T>
+bool is_0(T v)
+{
+    return std::abs(v) <= std::numeric_limits<T>::epsilon();
+}
 
 template<typename T>
 Array<T>::Array(const Array<T>& other)
@@ -192,7 +197,7 @@ bool Array<T>::operator==(const Array<T>& other) const
 {
     if (size() != other.size()) return false;
     for (int i = 0; i < size(); ++i) {
-        if (std::abs(at(i) - other.at(i)) > std::numeric_limits<T>::epsilon()) {
+        if (!is_0(at(i) - other.at(i))) {
             return false;
         }
     }
@@ -319,11 +324,11 @@ bool Matrix<T, R, C>::is_skew_sym() const
     if (R != C) return false;
 
     for (int i = 0; i < R; ++i) {
+        if (!is_0(at(i, i))) {
+            return false;
+        }
         for (int j = i; j < C; ++j) {
-            if (i == j) if (at(i, j) != 0) {
-                return false;
-            }
-            if (std::abs(at(i, j) + at(j, i)) > std::numeric_limits<T>::epsilon()) {
+            if (!is_0(at(i, j) + at(j, i))) {
                 return false;
             }
         }
@@ -348,8 +353,79 @@ Vector<T, R> Matrix<T, R, C>::vee() const
 template<typename T, int R, int C>
 Vector<T, R> Matrix<T, R, C>::null_space() const
 {
-    Vector<T, R> out;
+    // gaussian elimination
+    Matrix tmp{*this};
 
+    auto swap_row{[] (Matrix<T, R, C>& m, int r1, int r2) -> void {
+        for (int c = 0; c < C; ++c) {
+            std::swap(m.at(r1, c), m.at(r2, c));
+        }
+    }};
+
+    auto has_not0_before_c{[&tmp] (int r, int c) -> bool {
+        for (int i = 0; i < c; ++i) {
+            if (!is_0(tmp.at(r, i))) {
+                return true;
+            }
+        }
+        return false;
+    }};
+
+    auto has_not0_after_c{[&tmp] (int r, int c) -> bool {
+        for (int i = c + 1; i < C; ++i) {
+            if (!is_0(tmp.at(r, i))) {
+                return true;
+            }
+        }
+        return false;
+    }};
+
+    T pivot{};
+    // downword elimination
+    for (int c = 0; c < C; ++c) {
+        pivot = tmp.at(c, c);
+        if (is_0(pivot)) {
+            // try swap row
+            for (int r = 0; r < R; ++r) {
+                if (c != r && !is_0(tmp.at(r, c))) {
+                    if (r < c && has_not0_before_c(r, c)) { continue; }
+                    swap_row(tmp, r, c);
+                    break;
+                }
+            }
+            pivot = tmp.at(c, c);   // update pivot
+        }
+
+        if (is_0(pivot)) break; // finished
+        for (int r = 0; r < R; ++r) {
+            if (is_0(tmp.at(r, c)) || r == c) {
+                continue;
+            }
+
+            const auto ceof{tmp.at(r, c) / pivot};
+            for (int c1 = 0; c1 < C; ++c1) {
+                tmp.at(r, c1) -= tmp.at(c, c1) * ceof;
+            }
+        }
+    }
+
+    // upword elimination and solve
+    Vector<T, R> out;
+    for (int r = 0; r < R; ++r) {
+        if (!is_0(tmp.at(r, r))) {
+            if (!has_not0_after_c(r, C)) {
+                for (int r1 = 0; r1 < r; ++r1) {
+                    tmp.at(r1, r) = 0;
+                }
+                out.at(r) = 0;
+            } else {
+                out.at(r) = 1;
+                out.at(r) = 1;
+            }
+        }
+    }
+
+    std::cout << "tmp: " << tmp << "\n";
     return out;
 }
 
