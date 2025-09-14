@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <cstdio>
-#include <iostream>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -20,8 +19,10 @@ struct Plotter
 
     bool set_title(const char* title);
     bool line(std::vector<float> x, std::vector<float> y);
+    bool line(float* x, float* y, size_t len);
     bool function(const char* fun);
-    bool plot(const char* cmd);
+    bool plot(const char* plot_cmd);
+    bool cmd(const char* c);
 private:
     const char* plot_cmd() const;
 
@@ -81,22 +82,28 @@ Plotter::~Plotter()
 
 bool Plotter::set_title(const char* title)
 {
-    if (!gp_fp_) return false;
     if (!title) return false;
 
-    fprintf(gp_fp_, "set title \"%s\"\n", title);
-    return true;
+    char c[GP_MAX_PLOT_CMD_LEN];
+    snprintf(c, GP_MAX_PLOT_CMD_LEN, "set title \"%s\"\n", title);
+    return cmd(c);
 }
 
 bool Plotter::line(std::vector<float> x, std::vector<float> y)
 {
-    if (!gp_fp_) return false;
     if (x.size() != y.size()) return false;
+    return line(x.data(), y.data(), x.size());
+}
+
+bool Plotter::line(float* x, float* y, size_t len)
+{
+    if (!gp_fp_) return false;
+    if (!x || !y || len == 0) return false;
 
     auto data_name{unique_name()};
     fprintf(gp_fp_, "$%s<<EOD\n", data_name.c_str());
-    for (size_t i = 0; i < x.size(); ++i) {
-        fprintf(gp_fp_, "%f %f\n", x.at(i), y.at(i));
+    for (size_t i = 0; i < len; ++i) {
+        fprintf(gp_fp_, "%f %f\n", x[i], y[i]);
     }
     fprintf(gp_fp_, "EOD\n");
 
@@ -114,13 +121,22 @@ bool Plotter::function(const char* fun)
     return plot(c);
 }
 
-bool Plotter::plot(const char* cmd)
+bool Plotter::plot(const char* plot_cmd)
+{
+    if (cmd(plot_cmd)) {
+        has_plot_ = true;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Plotter::cmd(const char* c)
 {
     if (!gp_fp_) return false;
-    if (!cmd) return false;
+    if (!c) return false;
 
-    fprintf(gp_fp_, "%s\n", cmd);
-    has_plot_ = true;
+    fprintf(gp_fp_, "%s\n", c);
     return true;
 }
 
@@ -135,7 +151,6 @@ const char* Plotter::plot_cmd() const
         return plot;
     }
 }
-
 
 } // namespace gp
 
