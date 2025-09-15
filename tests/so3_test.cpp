@@ -52,5 +52,6 @@ HT_CASE(Vector, vee)
 {
      lie::Vector<float, 3> v;
      v << 1, 2, 4;
-     HT_ASSERT_EQ(v.hat().vee(), v);
+     lie::Vector<float, 3> v_trans{(v.hat().vee())};
+     HT_ASSERT_EQ(v_trans, v);
 }
