@@ -958,7 +958,7 @@ VectorX<T> SEX<T>::Log() const
 template<typename T>
 MatrixX<T> SEX<T>::log() const
 {
-
+    return Log().hat();
 }
 
 template<typename T>

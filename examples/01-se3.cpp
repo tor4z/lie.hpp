@@ -22,6 +22,7 @@ int main()
         v << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
         std::cout << "Exp: " << v.SE_Exp() << "\n";
         std::cout << "Exp.Log: " << v.SE_Exp().Log() << "\n";
+        std::cout << "Exp.Log.hat: " << v.SE_Exp().Log().hat() << "\n";
     }
     return 0;
 }
