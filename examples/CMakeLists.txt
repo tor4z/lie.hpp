@@ -18,6 +18,15 @@ add_executable(plot05
     05-plot.cpp
 )
 
+add_executable(rviz05
+    05-rviz.cpp
+)
+
+target_link_libraries(rviz05
+    raylib
+)
+
+
 add_executable(perturbations10
     10-perturbations.cpp
 )
