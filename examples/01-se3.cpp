@@ -17,8 +17,11 @@ int main()
     std::cout << "se3 offset: " << se3.offset() << "\n";
     std::cout << "act se3 on v: " << se3 * v << "\n";
 
-    lie::Vectorf<6> vee;
-    vee << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
-    std::cout << vee.SE_Exp() << "\n";
+    {
+        lie::Vectorf<6> v;
+        v << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
+        std::cout << "Exp: " << v.SE_Exp() << "\n";
+        std::cout << "Exp.Log: " << v.SE_Exp().Log() << "\n";
+    }
     return 0;
 }

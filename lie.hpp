@@ -929,7 +929,30 @@ VectorX<T> SEX<T>::operator*(const VectorX<T>& other) const
 template<typename T>
 VectorX<T> SEX<T>::Log() const
 {
+    VectorX<T> rot_vec(rot().Log());
+    
+    T theta{rot_vec.norm2()};
+    assert(!is_0(theta) && "Invalid Exp operator");
+    
+    MatrixX<T>eye_m(dim(), dim());
+    eye_m.eye_();
+    auto hat_m{(rot_vec * (1 / theta)).hat()};
 
+    MatrixX<T> J{eye_m + hat_m * ((1 - std::cos(theta)) / theta)
+        + hat_m * hat_m * ((theta - std::sin(theta)) / theta)};
+
+    VectorX<T> offset_vec(J.inv() * offset());
+    VectorX<T> out(dim() * 2);
+
+    // concat vector
+    int out_r{0};
+    for (int i = 0; i < offset_vec.row(); ++i) {
+        out.at(out_r++) = offset_vec.at(i);
+    }
+    for (int i = 0; i < rot_vec.row(); ++i) {
+        out.at(out_r++) = rot_vec.at(i);
+    }
+    return out;
 }
 
 template<typename T>
