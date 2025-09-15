@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10.0)
 
 project(lie.hpp VERSION 0.0.1)
 
+add_compile_options(-g)
+
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 include_directories(${CMAKE_CURRENT_LIST_DIR}/3rdparty/htest.hpp)
 

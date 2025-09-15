@@ -19,6 +19,6 @@ int main()
 
     lie::Vectorf<6> vee;
     vee << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
-    std::cout << vee.SE_exp() << "\n";
+    std::cout << vee.SE_Exp() << "\n";
     return 0;
 }

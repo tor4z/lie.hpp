@@ -131,10 +131,12 @@ struct SOX: public MatrixX<T>
 
     inline static SOX eye(int dim) { return SOX(MatrixX<T>(dim).eye().array()); }
 
-    SOX(int dim) : MatrixX<T>(dim, dim) {}
-    explicit SOX(int dim, const Array<T>& a) : MatrixX<T>(dim, dim, a) {}
-    inline SOX t() const { return SOX(dim(), t().array()); }
+    explicit SOX(int dim) : MatrixX<T>(dim, dim) {}
+    SOX(int dim, const Array<T>& a) : MatrixX<T>(dim, dim, a) {}
+    MatrixX<T> mat() const { return MatrixX<T>(dim(), dim(), array()); }
     inline int dim() const { return row(); }
+
+    inline SOX t() const { return SOX(dim(), MatrixX<T>::t().array()); }
 
     /**
      * @brief Composition
@@ -142,7 +144,7 @@ struct SOX: public MatrixX<T>
      * @param other 
      * @return SOX<T>
      */
-    inline SOX operator*(const SOX<T>& other) const { return SOX(dim(), (*this * other).array()); }
+    inline SOX operator*(const SOX<T>& other) const { return SOX(dim(), (this->mat() * other.mat()).array()); }
 
     /**
      * @brief action on a vector
@@ -150,7 +152,7 @@ struct SOX: public MatrixX<T>
      * @param other 
      * @return Vector<T>
      */
-    inline VectorX<T> operator*(const VectorX<T>& other) const { return *this * other; }
+    inline VectorX<T> operator*(const VectorX<T>& other) const { return this->mat() * other; }
 
     /**
      * @brief inv
@@ -189,11 +191,12 @@ struct SEX: public MatrixX<T>
     using MatrixX<T>::row;
     using MatrixX<T>::sub_matrix;
 
-    inline static SEX eye(int dim) { return SE(MatrixX<T>(dim, dim).eye().array()); }
+    inline static int to_m_dim(int dim) { return dim + 1; }
+    inline static SEX eye(int dim) { return SE(MatrixX<T>(to_m_dim(dim), to_m_dim(dim)).eye().array()); }
 
-    explicit SEX(int dim) : MatrixX<T>(dim, dim) {}
+    explicit SEX(int dim) : MatrixX<T>(to_m_dim(dim), to_m_dim(dim)) {}
     SEX(const SOX<T>& so, const VectorX<T>& off);
-    explicit SEX(int dim, const Array<T>& a) : MatrixX<T>(dim, dim, a) {}
+    explicit SEX(int dim, const Array<T>& a) : MatrixX<T>(to_m_dim(dim), to_m_dim(dim), a) {}
     inline MatrixX<T> mat() const { return MatrixX<T>(array()); }
     inline int dim() const { return row() - 1; }
 
@@ -255,7 +258,7 @@ template<typename T, int D>
 struct SO: public SOX<T>
 {
     SO() : SOX<T>(D) {}
-    explicit SO(const Array<T>& a) : MatrixX<T>(D, D, a) {}
+    explicit SO(const Array<T>& a) : SOX<T>(D, a) {}
     static SO eye();
 }; // struct SO
 
@@ -263,7 +266,7 @@ template<typename T, int D>
 struct SE: public SEX<T>
 {
     SE() : SEX<T>(D) {}
-    explicit SE(const Array<T>& a) : MatrixX<T>(D, D, a) {}
+    explicit SE(const Array<T>& a) : SEX<T>(D, a) {}
     static SE eye();
 }; // struct SE
 
@@ -522,6 +525,8 @@ VectorX<T> MatrixX<T>::vee() const
         out.at(2) = at(2, 3);
         return out;
     }
+
+    return VectorX<T>(3); // unreachable, return something to supress compiler warning
 }
 
 template<typename T>
@@ -553,6 +558,7 @@ MatrixX<T> MatrixX<T>::hat() const
         out.at(2, 3) = at(2);
         return out;
     }
+    return MatrixX<T>(3, 3); // unreachable, return something to supress compiler warning
 }
 
 template<typename T>
@@ -639,7 +645,8 @@ VectorX<T> MatrixX<T>::null_space() const
                 out.at(not0_cs[0]) = -out.at(not0_cs[1]) * tmp.at(r, not0_cs[1]) / tmp.at(r, not0_cs[0]);
             }
         } else if (num_not0 == 0) {
-            out.at(r) = 1;
+            if (is_0(out.at(r)))
+                out.at(r) = 1;
         } else {
             assert(false && "Undefined");
         }
@@ -653,13 +660,13 @@ T MatrixX<T>::norm2() const
 {
     assert(col_ == 1 && "Undefined");
 
+    T sq_sum{0};
     if (col_ == 1) {
-        T sq_sum{0};
-        for (int i = 0; i < col_; ++i) {
+        for (int i = 0; i < row_; ++i) {
             sq_sum += at(i) * at(i);
         }
-        return std::sqrt(sq_sum);
     }
+    return std::sqrt(sq_sum);
 }
 
 template<typename T>
@@ -688,9 +695,10 @@ SOX<T> MatrixX<T>::SO_Exp() const
 
     T theta{norm2()};
     assert(!is_0(theta) && "Invalid Exp operator");
-
+    
     auto hat_m{(*this * (1 / theta)).hat()};
-    auto m{MatrixX<T>(row_, row_).eye_() + (hat_m * hat_m) * (1 - std::cos(theta)) + hat_m * std::sin(theta)};
+    auto eye_m{MatrixX<T>(row_, row_).eye_()};
+    auto m{eye_m + (hat_m * hat_m) * (1 - std::cos(theta)) + hat_m * std::sin(theta)};
     return SOX<T>(row_, m.array());
 }
 
@@ -712,7 +720,7 @@ SEX<T> MatrixX<T>::SE_Exp() const
     T theta{rot_vec.norm2()};
     assert(!is_0(theta) && "Invalid Exp operator");
 
-    SOX<T> so{rot_vec.SO_exp()};
+    SOX<T> so{rot_vec.SO_Exp()};
     MatrixX<T>eye_m(row_ / 2, row_ / 2);
     eye_m.eye_();
     auto hat_m{(rot_vec * (1 / theta)).hat()};
@@ -726,8 +734,8 @@ SEX<T> MatrixX<T>::SE_Exp() const
 template<typename T>
 SEX<T> MatrixX<T>::SE_exp() const
 {
-    assert((row_ - 1 == 3 /* SE3 */ || row_ - 1 == 2 /* SE2 */) &&
-        "Bad vector shape");
+    assert(row_ == col_);
+    assert(row_ == 3 /* for SE2 */ || row_ == 4 /* for SE3 */);
     return vee().SE_Exp();
 }
 
