@@ -31,5 +31,9 @@ int main()
         std::cout << "Log of so3: " << so3.Log() << "\n";
         std::cout << "log of so3: " << so3.log() << "\n";
     }
+
+    std::cout << "=========== Exp.Log ==============\n";
+    std::cout << "v: " << v << "\n";
+    std::cout << "v.Exp().Log(): " << v.Exp().Log() << "\n";
     return 0;
 }

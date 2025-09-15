@@ -21,5 +21,13 @@ int main()
 
     auto m33_null{m33.null_space()};
     std::cout << "null space of m33: " << m33_null << "\n";
+
+    lie::Matrix<float, 3, 3> m33_inv;
+    m33_inv << 1, 2, 3,
+               2, 50, 6,
+               7, 8, 108;
+    std::cout << "another m33: " << m33_inv << "\n";
+    std::cout << "m33.inv: " << m33_inv.inv() << "\n";
+    std::cout << "m33 * m33.inv: " << m33_inv * m33_inv.inv() << "\n";
     return 0;
 }

@@ -91,6 +91,7 @@ public:
     Vector<T, R> vee() const;
     Vector<T, R> null_space() const;
     Matrix normalize() const;
+    Matrix inv() const;
 
     static Matrix eye();
 private:
@@ -118,8 +119,11 @@ struct SO: public Matrix<T, D, D>
 
     SO() : Matrix<T, D, D>() {}
     explicit SO(const Array<T>& a) : Matrix<T, D, D>(a) {}
-    inline SO<T, D> t() const { return SO<T, D>(mat().t().array()); }
     inline Matrix<T, D, D> mat() const { return Matrix<T, D, D>(array()); }
+    inline SO<T, D> t() const { return SO<T, D>(mat().t().array()); }
+    inline SO inv() const { return SO(Matrix<T, D, D>::inv().array()); }
+    inline static SO eye() { return SO(Matrix<T, D, D>::eye().array()); }
+
     /**
      * @brief Composition
      * 
@@ -128,8 +132,21 @@ struct SO: public Matrix<T, D, D>
      */
     inline SO<T, D> operator*(const SO<T, D>& other) const { return SO<T, D>((mat() * other.mat()).array()); }
 
-    SO r_plus(const Vector<T, D>& v) const;
-    Vector<T, D> r_minus(const SO so) const;
+    /**
+     * @brief right circle plus
+     * 
+     * @param v 
+     * @return SO 
+     */
+    SO plus(const Vector<T, D>& v) const;
+
+    /**
+     * @brief right circle minus
+     * 
+     * @param so 
+     * @return Vector<T, D> 
+     */
+    Vector<T, D> minus(const SO& so) const;
     Vector<T, D> Log() const;
     Matrix<T, D, D> log() const;
 }; // struct SO
@@ -169,6 +186,14 @@ template<typename T>
 bool is_0(T v)
 {
     return std::abs(v) <= std::numeric_limits<T>::epsilon();
+}
+
+template<typename T, int R, int C>
+void swap_row(Matrix<T, R, C>& m, int r1, int r2)
+{
+    for (int c = 0; c < C; ++c) {
+        std::swap(m.at(r1, c), m.at(r2, c));
+    }
 }
 
 template<typename T>
@@ -357,12 +382,6 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
     // gaussian elimination
     Matrix tmp{*this};
 
-    auto swap_row{[] (Matrix<T, R, C>& m, int r1, int r2) -> void {
-        for (int c = 0; c < C; ++c) {
-            std::swap(m.at(r1, c), m.at(r2, c));
-        }
-    }};
-
     auto has_not0_before_c{[&tmp] (int r, int c) -> bool {
         for (int i = 0; i < c; ++i) {
             if (!is_0(tmp.at(r, i))) {
@@ -397,7 +416,7 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
             pivot = tmp.at(c, c);       // update pivot
         }
 
-        if (is_0(pivot)) break;      // finished
+        if (is_0(pivot)) continue;      // finished
         for (int r = 0; r < R; ++r) {
             if (is_0(tmp.at(r, c)) || r == c) {
                 continue;
@@ -441,7 +460,7 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
                 out.at(not0_cs[0]) = -out.at(not0_cs[1]) * tmp.at(r, not0_cs[1]) / tmp.at(r, not0_cs[0]);
             }
         } else if (num_not0 == 0) {
-            // nothing
+            out.at(r) = 1;
         } else {
             assert(false && "Undefined");
         }
@@ -457,6 +476,8 @@ SO<T, R> Matrix<T, R, C>::exp() const
 
     auto vee_v{vee()};
     T vee_norm2{vee_v.norm2()};
+
+    assert(!is_0(vee_norm2) && "Invalid exp operator");
     auto hat_m{(vee_v * (1 / vee_norm2)).hat()};
     auto m{eye() + (hat_m * hat_m) * (1 - std::cos(vee_norm2)) + hat_m * std::sin(vee_norm2)};
     return SO<T, R>{m.array()};
@@ -570,6 +591,55 @@ T Matrix<T, R, C>::tr() const
     return result;
 }
 
+template<typename T, int R, int C>
+Matrix<T, R, C> Matrix<T, R, C>::inv() const
+{
+    static_assert(R == C, "Invalid matrix shape");
+    
+    if (R == 1) {
+        assert(!is_0(at(0, 0)) && "This matrix not invertible");
+        
+        Matrix<T, R, C> out;
+        out << 1 / at(0, 0);
+        return out;
+    }
+
+    // Gauss Jordan algorithm
+    auto out{Matrix::eye()};
+    auto tmp_m{*this};
+
+    for (int c = 0; c < out.col(); ++c) {
+        if (tmp_m.at(c, c) == 0) {
+            // swap row
+            for (int r1 = c + 1; r1 < out.row(); ++r1) {
+                if (tmp_m.at(r1, c) != 0) {
+                    swap_row(tmp_m, c, r1);
+                    swap_row(out, c, r1);
+                }
+            }
+        }
+
+        auto tmp{tmp_m.at(c, c)};
+        assert(!is_0(tmp) && "This matrix not invertible");
+
+        for (int c1 = 0; c1 < out.col(); ++c1) {
+            tmp_m.at(c, c1) /= tmp;
+            out.at(c, c1) /= tmp;
+        }
+
+        for (int r = 0; r < out.row(); ++r) {
+            if (r == c) continue;
+            const auto t{tmp_m.at(r, c)};
+            for (int c1 = 0; c1 < out.col(); ++c1) {
+                out.at(r, c1) -= out.at(c, c1) * t;
+                tmp_m.at(r, c1) -= t * tmp_m.at(c, c1);
+            }
+        }
+    }
+
+    return out;
+}
+
 template<typename T, int D>
 Vector<T, D> SO<T, D>::Log() const
 {
@@ -582,6 +652,18 @@ template<typename T, int D>
 Matrix<T, D, D> SO<T, D>::log() const
 {
     return Log().hat();
+}
+
+template<typename T, int D>
+SO<T, D> SO<T, D>::plus(const Vector<T, D>& v) const
+{
+    return (*this) * v.Exp();
+}
+
+template<typename T, int D>
+Vector<T, D> SO<T, D>::minus(const SO& so) const
+{
+    return (so.inv() * (*this)).Log();
 }
 
 template<typename T, int R, int C>
