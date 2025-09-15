@@ -13,14 +13,17 @@
 
 namespace lie {
 
-template<typename T, int D>
-struct SO;
+template<typename T>
+struct SOX;
 
-template<typename T, int R, int C>
-struct Matrix;
+template<typename T>
+struct SEX;
 
-template<typename T, int D>
-using Vector = Matrix<T, D, 1>;
+template<typename T>
+struct MatrixX;
+
+template<typename T>
+struct VectorX;
 
 template<typename T>
 struct Array
@@ -47,21 +50,21 @@ private:
     std::vector<T> data_;
 }; // struct Array
 
-template<typename T, int R, int C>
-struct Matrix
+template<typename T>
+struct MatrixX
 {
 private:
-    struct MatrixInitializer
+    struct MatrixXInitializer
     {
-        explicit MatrixInitializer(Matrix<T, R, C> *m) : m(m), idx(1) {}
-        MatrixInitializer& operator,(T v);
-        Matrix<T, R, C> *m;
+        explicit MatrixXInitializer(MatrixX<T> *m) : m(m), idx(1) {}
+        MatrixXInitializer& operator,(T v);
+        MatrixX<T> *m;
         int idx;
-    }; // struct MatrixInitializer
+    }; // struct MatrixXInitializer
 public:
-    MatrixInitializer operator<<(T v);
-    Matrix() : array_(R * C), row_(R), col_(C) {}
-    Matrix(const Array<T>& a) : array_(a), row_(R), col_(C) { assert(a.size() == R * C); }
+    MatrixXInitializer operator<<(T v);
+    MatrixX(int row, int col) : array_(row * col), row_(row), col_(col) {}
+    MatrixX(int row, int col, const Array<T>& a) : array_(a), row_(row), col_(col) { assert(a.size() == row * col); }
 
     inline Array<T>& array() { return array_; }
     inline const Array<T>& array() const { return array_; }
@@ -70,67 +73,83 @@ public:
     inline int size() const { return array_.size(); }
     inline T at(int i) const { return array_.at(i); }
     inline T& at(int i) { return array_.at(i); }
-    inline T at(int r, int c) const { return array_.at(r * C + c); }
-    inline T& at(int r, int c) { return array_.at(r * C + c); }
+    inline T at(int r, int c) const { return array_.at(r * col_ + c); }
+    inline T& at(int r, int c) { return array_.at(r * col_ + c); }
 
-    virtual bool operator!=(const Matrix& other) const { return array_ != other.array_; }
-    virtual bool operator==(const Matrix& other) const { return array_ == other.array_; }
-    virtual inline Matrix operator-(const Matrix& other) const { return Matrix<T, R, C>(array_ - other.array_); }
-    virtual inline Matrix operator+(const Matrix& other) const { return Matrix<T, R, C>(array_ + other.array_); }
-    virtual inline Matrix operator*(T v) const { return Matrix<T, R, C>(array_ * v); }
-    template<int C2> Matrix<T, R, C2> operator*(const Matrix<T, C, C2>& other) const;
+    virtual bool operator!=(const MatrixX& other) const { return array_ != other.array_; }
+    virtual bool operator==(const MatrixX& other) const { return array_ == other.array_; }
+    virtual inline MatrixX operator-(const MatrixX& other) const { return MatrixX(row_, col_, array_ - other.array_); }
+    virtual inline MatrixX operator+(const MatrixX& other) const { return MatrixX(row_, col_, array_ + other.array_); }
+    virtual inline MatrixX operator*(T v) const { return MatrixX(row_, col_, array_ * v); }
+    MatrixX operator*(const MatrixX<T>& other) const;
+    MatrixX sub_matrix(int sr, int sc, int r, int c) const;
 
     bool is_skew_sym() const;
     T tr() const;
     T norm2() const;
     T det() const;
-    SO<T, R> Exp() const;
-    SO<T, R> exp() const;
-    Matrix<T, R, R> hat() const;
-    Matrix<T, C, R> t() const;
-    Vector<T, R> vee() const;
-    Vector<T, R> null_space() const;
-    Matrix normalize() const;
-    Matrix inv() const;
+    SOX<T> SO_Exp() const;
+    SOX<T> SO_exp() const;
+    SEX<T> SE_Exp() const;
+    SEX<T> SE_exp() const;
+    MatrixX<T> hat() const;
+    MatrixX<T> t() const;
+    VectorX<T> vee() const;
+    VectorX<T> null_space() const;
+    MatrixX normalize() const;
+    MatrixX inv() const;
 
-    static Matrix eye();
+    MatrixX& eye_();
 private:
     Array<T> array_;
-    int row_;
-    int col_;
-}; // struct Matrix
+    const int row_;
+    const int col_;
+}; // struct MatrixX
 
-// invalid matrix
 template<typename T>
-struct Matrix<T, 0, 0>
+struct VectorX: public MatrixX<T>
 {
-    T at(int i) const;
-    T& at(int i);
-    T at(int r, int c) const;
-    T& at(int r, int c);
-    T det() const;
-}; // struct Matrix<T, 0, 0>
+    using MatrixX<T>::array;
+    using MatrixX<T>::at;
+    using MatrixX<T>::row;
 
-template<typename T, int D>
-struct SO: public Matrix<T, D, D>
+    explicit VectorX(int dim) : MatrixX<T>(dim, 1) {}
+    VectorX(int dim, const Array<T>& a) : MatrixX<T>(dim, 1, a) {}
+    inline int dim() const { return row(); }
+}; // struct VectorX
+
+template<typename T>
+struct SOX: public MatrixX<T>
 {
-    using Matrix<T, D, D>::array;
-    using Matrix<T, D, D>::tr;
+    using MatrixX<T>::array;
+    using MatrixX<T>::tr;
+    using MatrixX<T>::at;
+    using MatrixX<T>::row;
+    using MatrixX<T>::col;
 
-    SO() : Matrix<T, D, D>() {}
-    explicit SO(const Array<T>& a) : Matrix<T, D, D>(a) {}
-    inline Matrix<T, D, D> mat() const { return Matrix<T, D, D>(array()); }
-    inline SO<T, D> t() const { return SO<T, D>(mat().t().array()); }
-    inline SO inv() const { return SO(Matrix<T, D, D>::inv().array()); }
-    inline static SO eye() { return SO(Matrix<T, D, D>::eye().array()); }
+    inline static SOX eye(int dim) { return SOX(MatrixX<T>(dim).eye().array()); }
+
+    SOX(int dim) : MatrixX<T>(dim, dim) {}
+    explicit SOX(int dim, const Array<T>& a) : MatrixX<T>(dim, dim, a) {}
+    inline MatrixX<T> mat() const { return MatrixX<T>(array()); }
+    inline SOX t() const { return SO(mat().t().array()); }
+    inline int dim() const { return row(); }
 
     /**
      * @brief Composition
      * 
      * @param other 
-     * @return SO<T, D> 
+     * @return SOX<T> 
      */
-    inline SO<T, D> operator*(const SO<T, D>& other) const { return SO<T, D>((mat() * other.mat()).array()); }
+    inline SOX<T> operator*(const SOX<T>& other) const { return SOX<T>((mat() * other.mat()).array()); }
+
+    /**
+     * @brief action on a vector
+     * 
+     * @param other 
+     * @return Vector<T>
+     */
+    inline VectorX<T> operator*(const VectorX<T>& other) const { return mat() * other; }
 
     /**
      * @brief right circle plus
@@ -138,7 +157,7 @@ struct SO: public Matrix<T, D, D>
      * @param v 
      * @return SO 
      */
-    SO plus(const Vector<T, D>& v) const;
+    SOX plus(const VectorX<T>& v) const;
 
     /**
      * @brief right circle minus
@@ -146,10 +165,97 @@ struct SO: public Matrix<T, D, D>
      * @param so 
      * @return Vector<T, D> 
      */
-    Vector<T, D> minus(const SO& so) const;
-    Vector<T, D> Log() const;
-    Matrix<T, D, D> log() const;
+    VectorX<T> minus(const SOX& so) const;
+    VectorX<T> Log() const;
+    MatrixX<T> log() const;
+}; // struct SOX
+
+template<typename T>
+struct SEX: public MatrixX<T>
+{
+    using MatrixX<T>::array;
+    using MatrixX<T>::tr;
+    using MatrixX<T>::at;
+    using MatrixX<T>::col;
+    using MatrixX<T>::row;
+    using MatrixX<T>::sub_matrix;
+
+    inline static SEX eye(int dim) { return SE(MatrixX<T>(dim, dim).eye().array()); }
+
+    explicit SEX(int dim) : MatrixX<T>(dim, dim) {}
+    SEX(const SOX<T>& so, const VectorX<T>& off);
+    explicit SEX(int dim, const Array<T>& a) : MatrixX<T>(dim, dim, a) {}
+    inline MatrixX<T> mat() const { return MatrixX<T>(array()); }
+    inline int dim() const { return row() - 1; }
+
+    VectorX<T> offset() const;
+    SOX<T> rot() const;
+
+    /**
+     * @brief Composition
+     * 
+     * @param other 
+     * @return SEX<T>
+     */
+    inline SEX<T> operator*(const SEX<T>& other) const { return SEX<T>((mat() * other.mat()).array()); }
+
+    /**
+     * @brief action on a vector
+     * 
+     * @param other 
+     * @return VectorX<T>
+     */
+    VectorX<T> operator*(const VectorX<T>& other) const;
+
+    /**
+     * @brief right circle plus
+     * 
+     * @param v 
+     * @return SEX<T>
+     */
+    SEX plus(const VectorX<T>& v) const;
+
+    /**
+     * @brief right circle minus
+     * 
+     * @param se 
+     * @return VectorX<T> 
+     */
+    VectorX<T> minus(const SEX& se) const;
+    VectorX<T> Log() const;
+    MatrixX<T> log() const;
+}; // struct SEX
+
+template<typename T, int R, int C>
+struct Matrix: public MatrixX<T>
+{
+    Matrix() : MatrixX<T>(R, C) {}
+    explicit Matrix(const Array<T>& a) : MatrixX<T>(R, C, a) {}
+    static Matrix eye();
+}; // struct Matrix
+
+template<typename T, int D>
+struct Vector: public VectorX<T>
+{
+    Vector() : MatrixX<T>(D, 1) {}
+    explicit Vector(const Array<T>& a) : MatrixX<T>(D, 1, a) {}
+}; // struct Vector
+
+template<typename T, int D>
+struct SO: public SOX<T>
+{
+    SO() : SOX<T>(D) {}
+    explicit SO(const Array<T>& a) : MatrixX<T>(D, D, a) {}
+    static SO eye();
 }; // struct SO
+
+template<typename T, int D>
+struct SE: public SEX<T>
+{
+    SE() : SEX<T>(D) {}
+    explicit SE(const Array<T>& a) : MatrixX<T>(D, D, a) {}
+    static SE eye();
+}; // struct SE
 
 template<int R, int C>
 using Matrixf = Matrix<float, R, C>;
@@ -182,6 +288,15 @@ using SO2d = SOd<2>;
 using SO3f = SOf<3>;
 using SO3d = SOd<3>;
 
+template<int D>
+using SEf = SE<float, D>;
+template<int D>
+using SEd = SE<double, D>;
+using SE2f = SEf<2>;
+using SE2d = SEd<2>;
+using SE3f = SEf<3>;
+using SE3d = SEd<3>;
+
 template<typename T>
 bool is_0(T v)
 {
@@ -210,12 +325,14 @@ template<typename T>
 Array<T>& Array<T>::operator=(const Array<T>& other)
 {
     data_ = other.data_;
+    return *this;
 }
 
 template<typename T>
 Array<T>& Array<T>::operator=(Array<T>&& other)
 {
     data_ = std::move(other.data_);
+    return *this;
 }
 
 template<typename T>
@@ -300,29 +417,28 @@ Array<T> Array<T>::operator+(T v) const
     return out;
 }
 
-template<typename T, int R, int C>
-typename Matrix<T, R, C>::MatrixInitializer Matrix<T, R, C>::operator<<(T v)
+template<typename T>
+typename MatrixX<T>::MatrixXInitializer MatrixX<T>::operator<<(T v)
 {
     array_.at(0) = v;
-    return MatrixInitializer(this);    
+    return MatrixXInitializer(this);    
 }
 
-template<typename T, int R, int C>
-typename Matrix<T, R, C>::MatrixInitializer& Matrix<T, R, C>::MatrixInitializer::operator,(T v)
+template<typename T>
+typename MatrixX<T>::MatrixXInitializer& MatrixX<T>::MatrixXInitializer::operator,(T v)
 {
     m->array().at(idx++) = v;
     return *this;
 }
 
-template<typename T, int R, int C>
-template<int C2>
-Matrix<T, R, C2> Matrix<T, R, C>::operator*(const Matrix<T, C, C2>& other) const
+template<typename T>
+MatrixX<T> MatrixX<T>::operator*(const MatrixX<T>& other) const
 {
-    Matrix<T, R, C2> out;
-    for (int i = 0; i < R; ++i) {
-        for (int j = 0; j < C2; ++j) {
+    MatrixX<T> out(row_, other.col_);
+    for (int i = 0; i < out.row_; ++i) {
+        for (int j = 0; j < out.col_; ++j) {
             T val{0};
-            for (int k = 0; k < C; ++k) {
+            for (int k = 0; k < col_; ++k) {
                 val += at(i, k) * other.at(k, j);
             }
             out.at(i, j) = val;
@@ -331,12 +447,12 @@ Matrix<T, R, C2> Matrix<T, R, C>::operator*(const Matrix<T, C, C2>& other) const
     return out;
 }
 
-template<typename T, int R, int C>
-Matrix<T, C, R> Matrix<T, R, C>::t() const
+template<typename T>
+MatrixX<T> MatrixX<T>::t() const
 {
-    Matrix<T, C, R> out;
-    for (int i = 0; i < R; ++i) {
-        for (int j = 0; j < C; ++j) {
+    MatrixX<T> out(col_, row_);
+    for (int i = 0; i < row_; ++i) {
+        for (int j = 0; j < col_; ++j) {
             out.at(j, i) = at(i, j);
         }
     }
@@ -344,16 +460,16 @@ Matrix<T, C, R> Matrix<T, R, C>::t() const
     return out;
 }
 
-template<typename T, int R, int C>
-bool Matrix<T, R, C>::is_skew_sym() const
+template<typename T>
+bool MatrixX<T>::is_skew_sym() const
 {
-    if (R != C) return false;
+    if (row_ != col_) return false;
 
-    for (int i = 0; i < R; ++i) {
+    for (int i = 0; i < row_; ++i) {
         if (!is_0(at(i, i))) {
             return false;
         }
-        for (int j = i; j < C; ++j) {
+        for (int j = i; j < col_; ++j) {
             if (!is_0(at(i, j) + at(j, i))) {
                 return false;
             }
@@ -363,21 +479,64 @@ bool Matrix<T, R, C>::is_skew_sym() const
     return true;
 }
 
-template<typename T, int R, int C>
-Vector<T, R> Matrix<T, R, C>::vee() const
+template<typename T>
+VectorX<T> MatrixX<T>::vee() const
 {
-    static_assert(R == C);
-    static_assert(R == 3);
+    assert(col_ == col_);
+    assert(row_ == 3 || row_ == 4);
 
-    Vector<T, R> out;
-    out.at(2) = -at(0, 1);
-    out.at(1) = at(0, 2);
-    out.at(0) = -at(1, 2);
-    return out;
+    if (row_ == 3) {
+        VectorX<T> out(3);
+        out.at(2) = -at(0, 1);
+        out.at(1) = at(0, 2);
+        out.at(0) = -at(1, 2);
+        return out;
+    } else if (row_ == 4) {
+        VectorX<T> out(6);
+        out.at(5) = -at(0, 1);
+        out.at(4) = at(0, 2);
+        out.at(3) = -at(1, 2);
+
+        out.at(0) = at(0, 3);
+        out.at(1) = at(1, 3);
+        out.at(2) = at(2, 3);
+        return out;
+    }
 }
 
-template<typename T, int R, int C>
-Vector<T, R> Matrix<T, R, C>::null_space() const
+template<typename T>
+MatrixX<T> MatrixX<T>::hat() const
+{
+    assert(row_ == 3 || row_ == 6);
+    assert(col_ == 1);
+
+    if (row_ == 3) {
+        MatrixX<T> out(3, 3);
+        out.at(0, 1) = -at(2);
+        out.at(0, 2) = at(1);
+        out.at(1, 2) = -at(0);
+        out.at(1, 0) = at(2);
+        out.at(2, 0) = -at(1);
+        out.at(2, 1) = at(0);
+        return out;
+    } else if (row_ == 6) {
+        MatrixX<T> out(4, 4);
+        out.at(0, 1) = -at(5);
+        out.at(0, 2) = at(4);
+        out.at(1, 2) = -at(3);
+        out.at(1, 0) = at(5);
+        out.at(2, 0) = -at(4);
+        out.at(2, 1) = at(3);
+
+        out.at(0, 3) = at(0);
+        out.at(1, 3) = at(1);
+        out.at(2, 3) = at(2);
+        return out;
+    }
+}
+
+template<typename T>
+VectorX<T> MatrixX<T>::null_space() const
 {
     // gaussian elimination
     Matrix tmp{*this};
@@ -391,8 +550,8 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
         return false;
     }};
 
-    auto has_not0_after_c{[&tmp] (int r, int c) -> bool {
-        for (int i = c + 1; i < C; ++i) {
+    auto has_not0_after_c{[&tmp, this] (int r, int c) -> bool {
+        for (int i = c + 1; i < col_; ++i) {
             if (!is_0(tmp.at(r, i))) {
                 return true;
             }
@@ -402,11 +561,11 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
 
     T pivot{};
     // downword elimination
-    for (int c = 0; c < C; ++c) {
+    for (int c = 0; c < col_; ++c) {
         pivot = tmp.at(c, c);
         if (is_0(pivot)) {
             // try swap row
-            for (int r = 0; r < R; ++r) {
+            for (int r = 0; r < row_; ++r) {
                 if (c != r && !is_0(tmp.at(r, c))) {
                     if (r < c && has_not0_before_c(r, c)) { continue; }
                     swap_row(tmp, r, c);
@@ -417,22 +576,22 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
         }
 
         if (is_0(pivot)) continue;      // finished
-        for (int r = 0; r < R; ++r) {
+        for (int r = 0; r < row_; ++r) {
             if (is_0(tmp.at(r, c)) || r == c) {
                 continue;
             }
 
             const auto ceof{tmp.at(r, c) / pivot};
-            for (int c1 = 0; c1 < C; ++c1) {
+            for (int c1 = 0; c1 < col_; ++c1) {
                 tmp.at(r, c1) -= tmp.at(c, c1) * ceof;
             }
         }
     }
 
     // upword elimination
-    for (int r = 0; r < R; ++r) {
+    for (int r = 0; r < row_; ++r) {
         if (!is_0(tmp.at(r, r))) {
-            if (!has_not0_after_c(r, C)) {
+            if (!has_not0_after_c(r, col_)) {
                 for (int r1 = 0; r1 < r; ++r1) {
                     tmp.at(r1, r) = 0;
                 }
@@ -441,11 +600,11 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
     }
 
     // solve
-    Vector<T, R> out;
+    VectorX<T> out(col_);
     int not0_cs[2];  // not 0 col index on row r
-    for (int r = 0; r < R; ++r) {
+    for (int r = 0; r < row_; ++r) {
         int num_not0{0};
-        for (int c = 0; c < C; ++c) {
+        for (int c = 0; c < col_; ++c) {
             if (!is_0(tmp.at(r, c))) {
                 not0_cs[num_not0++] = c;
             }
@@ -469,31 +628,32 @@ Vector<T, R> Matrix<T, R, C>::null_space() const
     return out;
 }
 
-template<typename T, int R, int C>
-SO<T, R> Matrix<T, R, C>::exp() const
+template<typename T>
+T MatrixX<T>::norm2() const
 {
-    static_assert(R == C);
+    assert(col_ == 1 && "Undefined");
 
-    auto vee_v{vee()};
-    T vee_norm2{vee_v.norm2()};
-
-    assert(!is_0(vee_norm2) && "Invalid exp operator");
-    auto hat_m{(vee_v * (1 / vee_norm2)).hat()};
-    auto m{eye() + (hat_m * hat_m) * (1 - std::cos(vee_norm2)) + hat_m * std::sin(vee_norm2)};
-    return SO<T, R>{m.array()};
+    if (col_ == 1) {
+        T sq_sum{0};
+        for (int i = 0; i < col_; ++i) {
+            sq_sum += at(i) * at(i);
+        }
+        return std::sqrt(sq_sum);
+    }
 }
 
-template<typename T, int R, int C>
-Matrix<T, R, C> Matrix<T, R, C>::normalize() const
+template<typename T>
+MatrixX<T> MatrixX<T>::normalize() const
 {
-    static_assert(C == 1, "Undefined");
+    assert(col_ == 1 && "Undefined");
+
     auto norm{norm2()};
-    Matrix<T, R, C> out;
+    MatrixX<T> out(row_, col_);
     if (is_0(norm)) {
         return out;
     }
 
-    if (C == 1) {
+    if (col_ == 1) {
         for (int i = 0; i < size(); ++i) {
             out.at(i) = at(i) / norm;
         }
@@ -501,6 +661,54 @@ Matrix<T, R, C> Matrix<T, R, C>::normalize() const
     return out;
 }
 
+template<typename T>
+SOX<T> MatrixX<T>::SO_Exp() const
+{
+    assert(col_ == 1);
+
+    T theta{norm2()};
+    assert(!is_0(theta) && "Invalid Exp operator");
+
+    auto hat_m{(*this * (1 / theta)).hat()};
+    auto m{MatrixX<T>(row_, row_).eye_() + (hat_m * hat_m) * (1 - std::cos(theta)) + hat_m * std::sin(theta)};
+    return SOX<T>{m.array()};
+}
+
+template<typename T>
+SOX<T> MatrixX<T>::SO_exp() const
+{
+    assert(row_ == col_);
+    return vee().SO_Exp();
+}
+
+template<typename T>
+SEX<T> MatrixX<T>::SE_Exp() const
+{
+    static_assert(col_ % 2 == 0, "Bad vector shape");
+    VectorX<T> offset_vec{sub_matrix(0, 0, row_ / 2, 1)};
+    VectorX<T> rot_vec{sub_matrix(row_ / 2, row_ / 2, 1)};
+
+    T theta{rot_vec.norm2()};
+    assert(!is_0(theta) && "Invalid Exp operator");
+
+    SOX<T> so{rot_vec.SO_exp()};
+    MatrixX<T>eye_m(row_ / 2, row_ / 2);
+    eye_m.eye_();
+    auto hat_m{(rot_vec * (1 / theta)).hat()};
+
+    MatrixX<T> J{eye_m + (1 - std::cos(theta)) / theta * hat_m
+        + (theta - std::sin(theta)) / theta * hat_m * hat_m};
+
+    return SEX<T>(so, J * offset_vec);
+}
+
+template<typename T>
+SEX<T> MatrixX<T>::SE_exp() const
+{
+    assert((row_ - 1 == 3 /* SE3 */ || row_ - 1 == 2 /* SE2 */) &&
+        "Bad vector shape");
+    return vee().SE_Exp();
+}
 
 template<typename T, int R, int C>
 Matrix<T, R, C> Matrix<T, R, C>::eye()
@@ -513,49 +721,27 @@ Matrix<T, R, C> Matrix<T, R, C>::eye()
     return out;
 }
 
-template<typename T, int R, int C>
-Matrix<T, R, R> Matrix<T, R, C>::hat() const
+template<typename T>
+T MatrixX<T>::det() const
 {
-    static_assert(R == 3);
-    static_assert(C == 1);
-    Matrix<T, R, R> out;
-    out.at(0, 1) = -at(2);
-    out.at(0, 2) = at(1);
-    out.at(1, 2) = -at(0);
-    out.at(1, 0) = at(2);
-    out.at(2, 0) = -at(1);
-    out.at(2, 1) = at(0);
-    return out;
-}
-
-template<typename T, int R, int C>
-SO<T, R> Matrix<T, R, C>::Exp() const
-{
-    static_assert(C == 1);
-    return hat().exp();
-}
-
-template<typename T, int R, int C>
-T Matrix<T, R, C>::det() const
-{
-    static_assert(R == C);
-    if (R == 1) {
+    static_assert(row_ == col_);
+    if (row_ == 1) {
         return array_.at(0);
-    } else if (R == 2) {
+    } else if (row_ == 2) {
         return at(0, 0) * at(1, 1) - at(1, 0) * at(0, 1);
     }
 
     // calculate determinant with cofactor expansions
     T result{0};
-    Matrix<T, R - 1, C - 1> minor;
-    for (int c = 0; c < C; ++c) {
+    MatrixX<T> minor(row_ - 1, col_ - 1);
+    for (int c = 0; c < col_; ++c) {
         T sign{(1 + 1 + c) % 2 == 0 ? static_cast<T>(1) : static_cast<T>(-1)};
         T pivot{at(0, c)};
 
         // expansion for first row
-        for (int mr = 1; mr < R; ++mr) {
+        for (int mr = 1; mr < row_; ++mr) {
             int cc{0};
-            for (int mc = 0; mc < C; ++mc) {
+            for (int mc = 0; mc < col_; ++mc) {
                 if (c == mc) continue;
                 minor.at(mr - 1, cc++) = at(mr, mc);
             }
@@ -566,46 +752,34 @@ T Matrix<T, R, C>::det() const
     return result;
 }
 
-template<typename T, int R, int C>
-T Matrix<T, R, C>::norm2() const
+template<typename T>
+T MatrixX<T>::tr() const
 {
-    static_assert(C == 1, "Undefined");
+    assert(row_ == col_);
 
-    if (C == 1) {
-        T sq_sum{0};
-        for (int i = 0; i < R; ++i) {
-            sq_sum += at(i) * at(i);
-        }
-        return std::sqrt(sq_sum);
-    }
-}
-
-template<typename T, int R, int C>
-T Matrix<T, R, C>::tr() const
-{
-    static_assert(R == C);
     T result{0};
-    for (int i = 0; i < R; ++i) {
+    for (int i = 0; i < row_; ++i) {
         result += at(i, i);
     }
     return result;
 }
 
-template<typename T, int R, int C>
-Matrix<T, R, C> Matrix<T, R, C>::inv() const
+template<typename T>
+MatrixX<T> MatrixX<T>::inv() const
 {
-    static_assert(R == C, "Invalid matrix shape");
+    assert(row_ == col_ && "Invalid matrix shape");
     
-    if (R == 1) {
+    if (row_ == 1) {
         assert(!is_0(at(0, 0)) && "This matrix not invertible");
         
-        Matrix<T, R, C> out;
+        MatrixX<T> out(row_, col_);
         out << 1 / at(0, 0);
         return out;
     }
 
     // Gauss Jordan algorithm
-    auto out{Matrix::eye()};
+    auto out{MatrixX<T>(row_, col_)};
+    out.eye_();
     auto tmp_m{*this};
 
     for (int c = 0; c < out.col(); ++c) {
@@ -640,34 +814,115 @@ Matrix<T, R, C> Matrix<T, R, C>::inv() const
     return out;
 }
 
-template<typename T, int D>
-Vector<T, D> SO<T, D>::Log() const
+template<typename T>
+MatrixX<T> MatrixX<T>::sub_matrix(int sr, int sc, int r, int c) const
+{
+    static_assert(r <= row_ && c <= col_, "Bad sub matrix");
+    assert((r + sr) <= row_ && (c + sc) <= col_ && "Bad sub matrix");
+
+    MatrixX<T> out(r, c);
+    for (int i = 0; i < r; ++i) {
+        for (int j = 0; j < c; ++j) {
+            out.at(i, j) = at(sr + i, sc + j);
+        }
+    }
+    return out;
+}
+
+template<typename T>
+VectorX<T> SOX<T>::Log() const
 {
     auto theta{std::acos((tr() - 1) / 2)};
-    Vector<T, D> norm_v{(*this - Matrix<T, D, D>::eye()).null_space().normalize()};   
+    MatrixX<T> eye_m(dim(), dim());
+    eye_m.eye_();
+    VectorX<T> norm_v{dim(), (*this - eye_m).null_space().normalize()};   
     return norm_v * theta;
 }
 
-template<typename T, int D>
-Matrix<T, D, D> SO<T, D>::log() const
+template<typename T>
+MatrixX<T> SOX<T>::log() const
 {
     return Log().hat();
 }
 
-template<typename T, int D>
-SO<T, D> SO<T, D>::plus(const Vector<T, D>& v) const
+template<typename T>
+SOX<T> SOX<T>::plus(const VectorX<T>& v) const
 {
-    return (*this) * v.Exp();
+    assert(dim() == v.row());
+    return (*this) * v.SO_Exp();
 }
 
-template<typename T, int D>
-Vector<T, D> SO<T, D>::minus(const SO& so) const
+template<typename T>
+VectorX<T> SOX<T>::minus(const SOX& so) const
 {
+    assert(dim() == so.dim());
     return (so.inv() * (*this)).Log();
 }
 
-template<typename T, int R, int C>
-std::ostream& operator<<(std::ostream& os, const Matrix<T, R, C>& m)
+template<typename T>
+SEX<T>::SEX(const SOX<T>& so, const VectorX<T>& off)
+    : MatrixX<T>(so.dim() + 1, so.dim() + 1)
+{
+    // copy so
+    for (int r = 0; r < so.dim(); ++r) {
+        for (int c = 0; c < so.dim(); ++c) {
+            at(r, c) = so.at(r, c);
+        }
+    }
+
+    // copy offset
+    for (int r = 0; r < dim(); ++r) {
+        at(r, dim()) = off.at(r);
+    }
+
+    // set const
+    at(dim(), dim()) = 1;
+}
+
+template<typename T>
+VectorX<T> SEX<T>::offset() const
+{
+    return sub_matrix(0, dim(), dim(), 1);
+}
+
+template<typename T>
+SOX<T> SEX<T>::rot() const
+{
+    return SOX<T>(dim(), dim(), sub_matrix(0, 0, dim(), dim()).array());
+}
+
+template<typename T>
+VectorX<T> SEX<T>::operator*(const VectorX<T>& other) const
+{
+    return offset() + (rot() * other);
+}
+
+template<typename T>
+VectorX<T> SEX<T>::Log() const
+{
+
+}
+
+template<typename T>
+MatrixX<T> SEX<T>::log() const
+{
+
+}
+
+template<typename T>
+SEX<T> SEX<T>::plus(const VectorX<T>& v) const
+{
+
+}
+
+template<typename T>
+VectorX<T> SEX<T>::minus(const SEX<T>& se) const
+{
+
+}
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const MatrixX<T>& m)
 {
     os << "Matrix" << typeid(T).name() << "<" << m.row() << ", " << m.col() << ">{";
     os << std::fixed << std::setprecision(3);
@@ -679,10 +934,10 @@ std::ostream& operator<<(std::ostream& os, const Matrix<T, R, C>& m)
     return os;
 }
 
-template<typename T, int D>
-std::ostream& operator<<(std::ostream& os, const SO<T, D>& so)
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const SOX<T>& so)
 {
-    os << "SO" << D << typeid(T).name() << " {";
+    os << "SO" << so.dim() << typeid(T).name() << " {";
     os << std::fixed << std::setprecision(3);
     for (int i = 0; i < so.size(); ++i) {
         if (i % so.col() == 0) os << "\n  ";
@@ -692,13 +947,14 @@ std::ostream& operator<<(std::ostream& os, const SO<T, D>& so)
     return os;
 }
 
-template<typename T, int D>
-std::ostream& operator<<(std::ostream& os, const Vector<T, D>& v)
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const SEX<T>& se)
 {
-    os << "Vector" << D << typeid(T).name() << " {";
+    os << "SE" << se.dim() << typeid(T).name() << " {";
     os << std::fixed << std::setprecision(3);
-    for (int i = 0; i < v.size(); ++i) {
-        os << "\n  " << v.array().at(i) << ", ";
+    for (int i = 0; i < se.size(); ++i) {
+        if (i % se.col() == 0) os << "\n  ";
+        os << se.array().at(i) << ", ";
     }
     os << "\n}";
     return os;

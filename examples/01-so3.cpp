@@ -9,7 +9,7 @@ int main()
     std::cout << "============ exp ==========\n";
     {
         auto m{v.hat()};
-        auto so3{m.exp()};
+        auto so3{m.SO_exp()};
         std::cout << "so3: " << so3 << "\n";
         std::cout << "so3^T: " << so3.t() << "\n";
         std::cout << "so3 * so3.t(): " << so3 * so3.t() << "\n";
@@ -17,7 +17,7 @@ int main()
 
     std::cout << "============ Exp ==========\n";
     {
-        auto so3{v.Exp()};
+        auto so3{v.SO_Exp()};
         std::cout << "so3: " << so3 << "\n";
         std::cout << "so3^T: " << so3.t() << "\n";
         std::cout << "so3 * so3.t(): " << so3 * so3.t() << "\n";
@@ -25,7 +25,7 @@ int main()
 
     std::cout << "=========== Log ==============\n";
     {
-        auto so3{v.Exp()};
+        auto so3{v.SO_Exp()};
         std::cout << "v: " << v << "\n";
         std::cout << "so3: " << so3 << "\n";
         std::cout << "Log of so3: " << so3.Log() << "\n";
@@ -34,6 +34,6 @@ int main()
 
     std::cout << "=========== Exp.Log ==============\n";
     std::cout << "v: " << v << "\n";
-    std::cout << "v.Exp().Log(): " << v.Exp().Log() << "\n";
+    std::cout << "v.Exp().Log(): " << v.SO_Exp().Log() << "\n";
     return 0;
 }

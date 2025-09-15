@@ -29,5 +29,9 @@ int main()
     std::cout << "another m33: " << m33_inv << "\n";
     std::cout << "m33.inv: " << m33_inv.inv() << "\n";
     std::cout << "m33 * m33.inv: " << m33_inv * m33_inv.inv() << "\n";
+
+    std::cout << "m33: " << m33 << "\n";
+    std::cout << "sub m33: " << m33.sub_matrix(0, 1, 2, 2) << "\n";
+    std::cout << "sub m33: " << m33.sub_matrix(1, 1, 2, 2) << "\n";
     return 0;
 }
