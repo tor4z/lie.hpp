@@ -139,6 +139,8 @@ struct SOX: public MatrixX<T>
     inline MatrixX<T> mat() const { return MatrixX<T>(dim(), dim(), array()); }
     inline int dim() const { return row(); }
 
+    inline MatrixX<T> Adj() { return mat(); }
+    inline VectorX<T> adj(const VectorX<T>& v) { return (mat() * v.hat() * mat().inv()).vee(); }
     inline SOX t() const { return SOX(dim(), MatrixX<T>::t().array()); }
 
     /**
@@ -202,9 +204,11 @@ struct SEX: public MatrixX<T>
     SEX(int dim, const Array<T>& a) : MatrixX<T>(to_m_dim(dim), to_m_dim(dim), a) {}
     SEX(const MatrixX<T>& m) : MatrixX<T>(m) { assert(m.row() == m.col()); }
     SEX(const SOX<T>& so, const VectorX<T>& off);
-    inline MatrixX<T> mat() const { return MatrixX<T>(to_m_dim(dim()), to_m_dim(dim()), array()); }
     inline int dim() const { return row() - 1; }
-
+    inline MatrixX<T> mat() const { return MatrixX<T>(to_m_dim(dim()), to_m_dim(dim()), array()); }
+    inline VectorX<T> adj(const VectorX<T>& v) { return (mat() * v.hat() * mat().inv()).vee(); }
+    
+    MatrixX<T> Adj();
     VectorX<T> offset() const;
     SOX<T> rot() const;
 
@@ -931,6 +935,16 @@ SEX<T> SEX<T>::operator*(const SEX<T>& other) const
 {
     const auto this_rot{rot()};
     return SEX<T>(this_rot * other.rot(), offset() + this_rot * other.offset());
+}
+
+template<typename T>
+MatrixX<T> SEX<T>::Adj()
+{
+    MatrixX<T> out(2 * dim(), 2 * dim());
+    out.sub_mat_assign(0, 0, dim(), dim(), rot());
+    out.sub_mat_assign(0, dim(), dim(), dim(), offset().hat() * rot());
+    out.sub_mat_assign(dim(), dim(), dim(), dim(), rot());
+    return out;
 }
 
 template<typename T>

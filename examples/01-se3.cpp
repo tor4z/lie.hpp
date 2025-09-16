@@ -33,5 +33,18 @@ int main()
         std::cout << "valid_se3: " << valid_se3 << "\n";
         std::cout << "se3 * se3.inv(): " << valid_se3 * valid_se3.inv() << "\n";
     }
+
+    std::cout << "=========== Adj ==============\n";
+    {
+        lie::Vectorf<6> v;
+        v << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
+        lie::Vectorf<6> v2;
+        v2 << 0.1, 0.9, 0.1, 0.5, 0.5, 0.9;
+        auto se32{v2.SE_Exp()};
+    
+        std::cout << "v: " << v << "\n";
+        std::cout << "adj: " << se32.adj(v) << "\n";
+        std::cout << "adj2: " << se32.Adj() * v << "\n";
+    }
     return 0;
 }
