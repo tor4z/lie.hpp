@@ -6,12 +6,30 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <ostream>
 #include <utility>
 #include <vector>
 
+#ifndef LIE_PRINT_SETPRECISION
+#   define LIE_PRINT_SETPRECISION 3
+#endif // LIE_PRINT_SETPRECISION
+
+#ifndef LIE_EPS
+#   define LIE_EPS 1.0e-8
+#endif // LIE_EPS
+
+#ifndef LIE_EPSf
+#   define LIE_EPSf 1.0e-6f
+#endif // LIE_EPSf
+
 namespace lie {
+
+template<typename T>
+struct EPS { static T value() { return 0; } };
+template<>
+struct EPS<float> { static float value() { return LIE_EPSf; } };
+template<>
+struct EPS<double> { static double value() { return LIE_EPS; } };
 
 template<typename T>
 struct SOX;
@@ -66,6 +84,25 @@ public:
     MatrixX(int row, int col) : array_(row * col), row_(row), col_(col) {}
     MatrixX(int row, int col, const Array<T>& a) : array_(a), row_(row), col_(col) { assert(a.size() == row * col); }
 
+    MatrixX(const MatrixX& m) : array_(m.array_), row_(m.row_), col_(m.col_) {}
+    MatrixX(MatrixX&& m) : array_(std::move(m.array_)), row_(m.row_), col_(m.col_) {}
+    MatrixX& operator=(const MatrixX& m)
+    {
+        row_ = m.row_;
+        col_ = m.col_;
+        array_ = m. array_;
+        return *this;
+    }
+    MatrixX& operator=(MatrixX&& m)
+    {
+        row_ = m.row_;
+        col_ = m.col_;
+        array_ = std::move(m.array_);
+        m.row_ = 0;
+        m.col_ = 0;
+        return *this;
+    }
+
     inline Array<T>& array() { return array_; }
     inline const Array<T>& array() const { return array_; }
     inline int row() const { return row_; }
@@ -89,10 +126,6 @@ public:
     T tr() const;
     T norm2() const;
     T det() const;
-    SOX<T> SO_Exp() const;
-    SOX<T> SO_exp() const;
-    SEX<T> SE_Exp() const;
-    SEX<T> SE_exp() const;
     MatrixX<T> hat() const;
     MatrixX<T> t() const;
     VectorX<T> vee() const;
@@ -100,11 +133,18 @@ public:
     MatrixX normalize() const;
     MatrixX inv() const;
 
+    SOX<T> SO_Exp() const;
+    SOX<T> SO_exp() const;
+    SEX<T> SE_Exp() const;
+    SEX<T> SE_exp() const;
+
+    SOX<T> lplus(const SOX<T>& other) const;
+
     static MatrixX eye(int row, int col);
 private:
     Array<T> array_;
-    const int row_;
-    const int col_;
+    int row_;
+    int col_;
 }; // struct MatrixX
 
 template<typename T>
@@ -136,6 +176,22 @@ struct SOX: public MatrixX<T>
     explicit SOX(int dim) : MatrixX<T>(dim, dim) {}
     SOX(const MatrixX<T>& m) : MatrixX<T>(m) { assert(m.row() == m.col()); }
     SOX(int dim, const Array<T>& a) : MatrixX<T>(dim, dim, a) {}
+    SOX(SOX&& other) : MatrixX<T>(other.mat()) { assert(dim() == other.dim()); }
+    SOX(const SOX& other) : MatrixX<T>(other.mat()) { assert(dim() == other.dim()); }
+    SOX& operator=(SOX&& other)
+    {
+        assert(dim() == other.dim());
+        MatrixX<T>::operator=(std::move(other.mat()));
+        return *this;
+    }
+
+    SOX& operator=(const SOX& other)
+    {
+        assert(dim() == other.dim());
+        MatrixX<T>::operator=(other.mat());
+        return *this;
+    }
+
     inline MatrixX<T> mat() const { return MatrixX<T>(dim(), dim(), array()); }
     inline int dim() const { return row(); }
 
@@ -173,7 +229,7 @@ struct SOX: public MatrixX<T>
      * @param v 
      * @return SO 
      */
-    SOX plus(const VectorX<T>& v) const;
+    SOX rplus(const VectorX<T>& v) const;
 
     /**
      * @brief right circle minus
@@ -181,7 +237,8 @@ struct SOX: public MatrixX<T>
      * @param so 
      * @return Vector<T, D> 
      */
-    VectorX<T> minus(const SOX& so) const;
+    VectorX<T> rminus(const SOX& so) const;
+    VectorX<T> lminus(const SOX& so) const;
     VectorX<T> Log() const;
     MatrixX<T> log() const;
 }; // struct SOX
@@ -204,6 +261,23 @@ struct SEX: public MatrixX<T>
     SEX(int dim, const Array<T>& a) : MatrixX<T>(to_m_dim(dim), to_m_dim(dim), a) {}
     SEX(const MatrixX<T>& m) : MatrixX<T>(m) { assert(m.row() == m.col()); }
     SEX(const SOX<T>& so, const VectorX<T>& off);
+
+    SEX(SEX&& other) : MatrixX<T>(other.mat()) { assert(dim() == other.dim()); }
+    SEX(const SEX& other) : MatrixX<T>(other.mat()) { assert(dim() == other.dim()); }
+    SEX& operator=(SEX&& other)
+    {
+        assert(dim() == other.dim());
+        MatrixX<T>::operator=(std::move(other.mat()));
+        return *this;
+    }
+
+    SEX& operator=(const SEX& other)
+    {
+        assert(dim() == other.dim());
+        MatrixX<T>::operator=(other.mat());
+        return *this;
+    }
+
     inline int dim() const { return row() - 1; }
     inline MatrixX<T> mat() const { return MatrixX<T>(to_m_dim(dim()), to_m_dim(dim()), array()); }
     inline VectorX<T> adj(const VectorX<T>& v) { return (mat() * v.hat() * mat().inv()).vee(); }
@@ -241,7 +315,7 @@ struct SEX: public MatrixX<T>
      * @param v 
      * @return SEX<T>
      */
-    SEX plus(const VectorX<T>& v) const;
+    SEX rplus(const VectorX<T>& v) const;
 
     /**
      * @brief right circle minus
@@ -249,7 +323,7 @@ struct SEX: public MatrixX<T>
      * @param se 
      * @return VectorX<T> 
      */
-    VectorX<T> minus(const SEX& se) const;
+    VectorX<T> rminus(const SEX& se) const;
     VectorX<T> Log() const;
     MatrixX<T> log() const;
 }; // struct SEX
@@ -275,6 +349,22 @@ struct SO: public SOX<T>
 {
     SO() : SOX<T>(D) {}
     explicit SO(const Array<T>& a) : SOX<T>(D, a) {}
+
+    SO(const SOX<T>& other) : SOX<T>(other) { assert(D == other.dim()); }
+    SO(SOX<T>&& other) : SOX<T>(other) { assert(D == other.dim()); }
+    SO& operator=(const SOX<T>& other)
+    {
+        assert(D == other.dim());
+        SOX<T>::operator=(other);
+        return *this;
+    }
+    SO& operator=(SOX<T>&& other)
+    {
+        assert(D == other.dim());
+        SOX<T>::operator=(std::forward<SOX<T>>(other));
+        return *this;
+    }
+
     static SO eye();
 }; // struct SO
 
@@ -283,6 +373,22 @@ struct SE: public SEX<T>
 {
     SE() : SEX<T>(D) {}
     explicit SE(const Array<T>& a) : SEX<T>(D, a) {}
+
+    SE(const SEX<T>& other) : SEX<T>(other) { assert(D == other.dim()); }
+    SE(SEX<T>&& other) : SEX<T>(other) { assert(D == other.dim()); }
+    SE& operator=(const SEX<T>& other)
+    {
+        assert(D == other.dim());
+        SEX<T>::operator=(other);
+        return *this;
+    }
+    SE& operator=(SEX<T>&& other)
+    {
+        assert(D == other.dim());
+        SEX<T>::operator=(std::forward<SEX<T>>(other));
+        return *this;
+    }
+
     static SE eye();
 }; // struct SE
 
@@ -329,9 +435,9 @@ using SE3f = SEf<3>;
 using SE3d = SEd<3>;
 
 template<typename T>
-bool is_0(T v)
+inline bool is_0(T v)
 {
-    return std::abs(v) <= std::numeric_limits<T>::epsilon();
+    return std::abs(v) <= EPS<T>::value();
 }
 
 template<typename T>
@@ -670,7 +776,6 @@ VectorX<T> MatrixX<T>::null_space() const
             assert(false && "Undefined");
         }
     }
-
     return out;
 }
 
@@ -712,8 +817,8 @@ SOX<T> MatrixX<T>::SO_Exp() const
 {
     assert(col_ == 1);
 
-    T theta{norm2()};
-    assert(!is_0(theta) && "Invalid Exp operator");
+    T theta{norm2() + EPS<T>::value()};
+    // assert(!is_0(theta) && "Invalid Exp operator");
 
     auto hat_m{(*this * (1 / theta)).hat()};
     auto eye_m{MatrixX<T>::eye(row_, row_)};
@@ -736,8 +841,8 @@ SEX<T> MatrixX<T>::SE_Exp() const
     VectorX<T> offset_vec{sub_mat(0, 0, row_ / 2, 1)};
     VectorX<T> rot_vec{sub_mat(row_ / 2, 0, row_ / 2, 1)};
 
-    T theta{rot_vec.norm2()};
-    assert(!is_0(theta) && "Invalid Exp operator");
+    T theta{rot_vec.norm2() + EPS<T>::value()};
+    // assert(!is_0(theta) && "Invalid Exp operator");
 
     SOX<T> so{rot_vec.SO_Exp()};
     auto eye_m{MatrixX<T>::eye(row_ / 2, row_ / 2)};
@@ -755,6 +860,14 @@ SEX<T> MatrixX<T>::SE_exp() const
     assert(row_ == col_);
     assert(row_ == 3 /* for SE2 */ || row_ == 4 /* for SE3 */);
     return vee().SE_Exp();
+}
+
+template<typename T>
+SOX<T> MatrixX<T>::lplus(const SOX<T>& other) const
+{
+    assert(col_ == 1);
+    assert(row_ == other.dim());
+    return this->SO_Exp() * other;
 }
 
 template<typename T, int R, int C>
@@ -905,17 +1018,24 @@ MatrixX<T> SOX<T>::log() const
 }
 
 template<typename T>
-SOX<T> SOX<T>::plus(const VectorX<T>& v) const
+SOX<T> SOX<T>::rplus(const VectorX<T>& v) const
 {
     assert(dim() == v.row());
     return (*this) * v.SO_Exp();
 }
 
 template<typename T>
-VectorX<T> SOX<T>::minus(const SOX& so) const
+VectorX<T> SOX<T>::rminus(const SOX& so) const
 {
     assert(dim() == so.dim());
     return (so.inv() * (*this)).Log();
+}
+
+template<typename T>
+VectorX<T> SOX<T>::lminus(const SOX& so) const
+{
+    assert(dim() == so.dim());
+    return ((*this) * so.inv()).Log();
 }
 
 template<typename T>
@@ -976,9 +1096,8 @@ template<typename T>
 VectorX<T> SEX<T>::Log() const
 {
     VectorX<T> rot_vec(rot().Log());
-    
-    T theta{rot_vec.norm2()};
-    assert(!is_0(theta) && "Invalid Exp operator");
+    T theta{rot_vec.norm2() + EPS<T>::value()};
+    // assert(!is_0(theta) && "Invalid Exp operator");
     
     auto eye_m{MatrixX<T>::eye(dim(), dim())};
     auto hat_m{(rot_vec * (1 / theta)).hat()};
@@ -1002,7 +1121,7 @@ MatrixX<T> SEX<T>::log() const
 }
 
 template<typename T>
-SEX<T> SEX<T>::plus(const VectorX<T>& v) const
+SEX<T> SEX<T>::rplus(const VectorX<T>& v) const
 {
     assert(dim() == v.dim() / 2);
     auto v_exp{v.SE_Exp()};
@@ -1013,7 +1132,7 @@ SEX<T> SEX<T>::plus(const VectorX<T>& v) const
 }
 
 template<typename T>
-VectorX<T> SEX<T>::minus(const SEX<T>& other) const
+VectorX<T> SEX<T>::rminus(const SEX<T>& other) const
 {
     assert(dim() == other.dim());
 
@@ -1056,7 +1175,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, const MatrixX<T>& m)
 {
     os << "Matrix" << typeid(T).name() << "<" << m.row() << ", " << m.col() << ">{";
-    os << std::fixed << std::setprecision(3);
+    os << std::fixed << std::setprecision(LIE_PRINT_SETPRECISION);
     for (int i = 0; i < m.size(); ++i) {
         if (i % m.col() == 0) os << "\n  ";
         os << m.array().at(i) << ", ";
@@ -1069,7 +1188,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, const SOX<T>& so)
 {
     os << "SO" << so.dim() << typeid(T).name() << " {";
-    os << std::fixed << std::setprecision(3);
+    os << std::fixed << std::setprecision(LIE_PRINT_SETPRECISION);
     for (int i = 0; i < so.size(); ++i) {
         if (i % so.col() == 0) os << "\n  ";
         os << so.array().at(i) << ", ";
@@ -1082,7 +1201,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, const SEX<T>& se)
 {
     os << "SE" << se.dim() << typeid(T).name() << " {";
-    os << std::fixed << std::setprecision(3);
+    os << std::fixed << std::setprecision(LIE_PRINT_SETPRECISION);
     for (int i = 0; i < se.size(); ++i) {
         if (i % se.col() == 0) os << "\n  ";
         os << se.array().at(i) << ", ";
@@ -1095,7 +1214,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, const VectorX<T>& v)
 {
     os << "Vector" << v.dim() << typeid(T).name() << " {";
-    os << std::fixed << std::setprecision(3);
+    os << std::fixed << std::setprecision(LIE_PRINT_SETPRECISION);
     for (int i = 0; i < v.size(); ++i) {
         if (i % v.col() == 0) os << "\n  ";
         os << v.array().at(i) << ", ";

@@ -26,6 +26,6 @@ add_executable(se_perturbations10
     10-se_perturbations.cpp
 )
 
-add_executable(localization15
-    15-localization.cpp
+add_executable(naive_localization15
+    15-naive_localization.cpp
 )

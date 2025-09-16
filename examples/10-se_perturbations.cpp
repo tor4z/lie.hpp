@@ -14,9 +14,9 @@ int main()
     std::cout << "pert v Exp: " << v.SE_Exp() << "\n";
 
     std::cout << "======== right plus/minus ===========\n";
-    auto id_with_perb{id.plus(v)};
+    auto id_with_perb{id.rplus(v)};
     std::cout << "id_with_perb: " << id_with_perb << "\n";
-    std::cout << "The pert: " << id_with_perb.minus(id) << "\n";
+    std::cout << "The pert: " << id_with_perb.rminus(id) << "\n";
 
     return 0;
 }
