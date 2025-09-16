@@ -18,17 +18,12 @@ add_executable(plot05
     05-plot.cpp
 )
 
-add_executable(rviz05
-    05-rviz.cpp
+add_executable(so_perturbations10
+    10-so_perturbations.cpp
 )
 
-target_link_libraries(rviz05
-    raylib
-)
-
-
-add_executable(perturbations10
-    10-perturbations.cpp
+add_executable(se_perturbations10
+    10-se_perturbations.cpp
 )
 
 add_executable(localization15
