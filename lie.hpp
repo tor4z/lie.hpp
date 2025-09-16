@@ -214,7 +214,14 @@ struct SEX: public MatrixX<T>
      * @param other 
      * @return SEX<T>
      */
-    inline SEX<T> operator*(const SEX<T>& other) const { return SEX<T>(dim(), (mat() * other.mat()).array()); }
+    SEX<T> operator*(const SEX<T>& other) const;
+
+    /**
+     * @brief inverse
+     * 
+     * @return SEX<T> 
+     */
+    SEX<T> inv() const;
 
     /**
      * @brief action on a vector
@@ -917,6 +924,20 @@ SEX<T>::SEX(const SOX<T>& so, const VectorX<T>& off)
     sub_mat_assign(0, dim(), off.row(), off.col(), off.mat());
     // set const
     at(dim(), dim()) = 1;
+}
+
+template<typename T>
+SEX<T> SEX<T>::operator*(const SEX<T>& other) const
+{
+    const auto this_rot{rot()};
+    return SEX<T>(this_rot * other.rot(), offset() + this_rot * other.offset());
+}
+
+template<typename T>
+SEX<T> SEX<T>::inv() const
+{
+    const auto this_rot_t{rot().t()};
+    return SEX<T>(this_rot_t, this_rot_t * offset() * -1);
 }
 
 template<typename T>
