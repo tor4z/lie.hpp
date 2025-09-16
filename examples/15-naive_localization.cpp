@@ -1,6 +1,7 @@
 #define LIE_IMPLEMENTATION
-#define LIE_PRINT_SETPRECISION 10
+#define LIE_PRINT_SETPRECISION 5
 #include "lie.hpp"
+#include <iostream>
 
 int main()
 {
